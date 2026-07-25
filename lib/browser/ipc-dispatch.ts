@@ -35,16 +35,14 @@ const addServiceWorkerPropertyToEvent = (
 };
 
 /**
- * Cached IPC emitters sorted by dispatch priority.
- * Caching is used to avoid frequent array allocations.
+ * Get list of relevant IPC emitters for dispatch, sorted by dispatch priority.
+ *
+ * A fresh array is returned per dispatch. It must not be shared: callers
+ * iterate the result across `emit()` calls that run application code, and a
+ * nested dispatch (e.g. an IPC arriving while a handler runs a modal dialog)
+ * would otherwise overwrite the entries still to be visited and deliver the
+ * message to a different WebContents' `ipc`.
  */
-const cachedIpcEmitters: (ElectronInternal.IpcMainInternal | undefined)[] = [
-  undefined, // WebFrameMain ipc
-  undefined, // WebContents ipc
-  ipcMain
-];
-
-// Get list of relevant IPC emitters for dispatch.
 const getIpcEmittersForFrameEvent = (
   event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent
 ): (ElectronInternal.IpcMainInternal | undefined)[] => {
@@ -53,9 +51,11 @@ const getIpcEmittersForFrameEvent = (
   // unloading and its internal state is pending deletion.
   const { frameTreeNodeId } = event;
   const webFrameByFtn = frameTreeNodeId ? webFrameMainBinding._fromFtnIdIfExists(frameTreeNodeId) : undefined;
-  cachedIpcEmitters[0] = webFrameByFtn?.ipc;
-  cachedIpcEmitters[1] = event.sender.ipc;
-  return cachedIpcEmitters;
+  return [
+    webFrameByFtn?.ipc, // WebFrameMain ipc
+    event.sender.ipc, // WebContents ipc
+    ipcMain
+  ];
 };
 
 /**

@@ -27,7 +27,7 @@ WebViewGuestDelegate::~WebViewGuestDelegate() {
   ResetZoomController();
 }
 
-void WebViewGuestDelegate::AttachToIframe(
+bool WebViewGuestDelegate::AttachToIframe(
     content::WebContents* embedder_web_contents,
     blink::LocalFrameToken& embedder_frame_token) {
   embedder_web_contents_ = embedder_web_contents;
@@ -38,8 +38,15 @@ void WebViewGuestDelegate::AttachToIframe(
   auto* embedder_frame = content::RenderFrameHost::FromFrameToken(
       content::GlobalRenderFrameHostToken(embedder_process_id,
                                           embedder_frame_token));
-  DCHECK_EQ(embedder_web_contents_,
-            content::WebContents::FromRenderFrameHost(embedder_frame));
+
+  // |embedder_frame_token| is supplied by the renderer and need not name a
+  // frame of |embedder_web_contents|, so this must be enforced in release
+  // builds and not merely asserted.
+  if (!embedder_frame ||
+      content::WebContents::FromRenderFrameHost(embedder_frame) !=
+          embedder_web_contents_) {
+    return false;
+  }
 
   content::WebContents* guest_web_contents = api_web_contents_->web_contents();
 
@@ -60,6 +67,7 @@ void WebViewGuestDelegate::AttachToIframe(
   zoom_controller->SetEmbedderZoomController(embedder_zoom_controller_);
 
   api_web_contents_->Emit("did-attach");
+  return true;
 }
 
 void WebViewGuestDelegate::WillDestroy() {

@@ -78,8 +78,12 @@ The following methods are available on instances of `Cookies`:
   * `url` string (optional) - Retrieves cookies which are associated with
     `url`. Empty implies retrieving cookies of all URLs.
   * `name` string (optional) - Filters cookies by name.
-  * `domain` string (optional) - Retrieves cookies whose domains match or are
-    subdomains of `domains`.
+  * `domain` string (optional) - Interpreted as a host name. Retrieves cookies
+    that would apply to that host under standard cookie domain matching: a
+    host-only cookie matches only if its domain is exactly `domain`, while a
+    cookie whose domain begins with a `.` matches if `domain` is that domain
+    itself or any subdomain of it. For example, `sub.example.com` retrieves a
+    `.example.com` cookie but not a host-only cookie set for `example.com`.
   * `path` string (optional) - Retrieves cookies whose path matches `path`.
   * `secure` boolean (optional) - Filters cookies by their Secure property.
   * `session` boolean (optional) - Filters out session or persistent cookies.

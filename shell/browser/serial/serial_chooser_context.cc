@@ -132,8 +132,14 @@ void SerialChooserContext::RevokePortPermissionWebInitiated(
     const url::Origin& origin,
     const base::UnguessableToken& token,
     content::RenderFrameHost* render_frame_host) {
+  // Cloned inside the guard below: |token| is renderer-supplied and need not
+  // name a known port, and the entry is erased by OnPortRemoved() while a
+  // renderer-side SerialPort may still call forget() on it.
+  device::mojom::SerialPortInfoPtr revoked_port;
+
   auto it = port_info_.find(token);
   if (it != port_info_.end()) {
+    revoked_port = it->second->Clone();
     auto* permission_manager = static_cast<ElectronPermissionManager*>(
         browser_context_->GetPermissionControllerDelegate());
     permission_manager->RevokeDevicePermission(
@@ -151,11 +157,11 @@ void SerialChooserContext::RevokePortPermissionWebInitiated(
       content::WebContents::FromRenderFrameHost(render_frame_host);
   gin::WeakCell<api::Session>* session =
       api::Session::FromBrowserContext(web_contents->GetBrowserContext());
-  if (session && session->Get()) {
+  if (session && session->Get() && revoked_port) {
     v8::Isolate* isolate = JavascriptEnvironment::GetIsolate();
     v8::HandleScope scope(isolate);
     auto details = gin_helper::Dictionary::CreateEmpty(isolate);
-    details.Set("port", it->second);
+    details.Set("port", revoked_port);
     details.SetGetter("frame", render_frame_host);
     details.Set("origin", origin.Serialize());
     session->Get()->Emit("serial-port-revoked", details);
