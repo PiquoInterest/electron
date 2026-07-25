@@ -370,8 +370,10 @@ describe('security review findings', () => {
     //           any renderer whose real preload source hashes to the stored
     //           value. There is no V8 backstop: SerializedCodeData::SourceHash is
     //           a source-*length* field plus two bits, with no content hash — as
-    //           Electron's own mojom comment says
-    //           (shell/common/api/web_contents_utility.mojom:24-29).
+    //           Electron's own mojom comment says at
+    //           shell/common/web_contents_utility.mojom:23-30, "V8's own
+    //           CachedData source check is length-only, so it cannot reject a
+    //           same-length source change".
     // Proves:   end to end, that a cache entry whose stored hash matches the
     //           victim preload but whose blob was compiled from *different
     //           source of the same length* is not executed.
@@ -471,7 +473,8 @@ describe('security review findings', () => {
     };
 
     it.skip('does not execute a cached blob compiled from different source of the same length', async () => {
-      // EXPECTED TO FAIL until B1 (preload code cache accepts a renderer-supplied blob) is fixed; remove .skip to reproduce
+      // EXPECTED TO FAIL until B1 (preload code cache accepts a
+      // renderer-supplied blob) is fixed; remove .skip to reproduce
       const donorPath = makePreload('DONOR');
       const victimPath = makePreload('VICTM');
       expect(preloadSource('DONOR')).to.have.lengthOf(
@@ -684,11 +687,19 @@ describe('security review findings', () => {
       }).to.throw(/Invalid url pattern/);
 
       // The app caught the TypeError and believes nothing is registered. Nothing
-      // should be.
-      const response = await ses.fetch(`${serverUrl}/filter/test`, { bypassCustomProtocolHandlers: true });
+      // should be. The fetch result is captured rather than awaited bare so that
+      // the surviving listener's `cancel: true` surfaces as a readable assertion
+      // instead of an opaque network error.
+      const result = await ses.fetch(`${serverUrl}/filter/test`, { bypassCustomProtocolHandlers: true }).then(
+        (res) => ({ ok: res.ok, error: null as Error | null }),
+        (error: Error) => ({ ok: false, error })
+      );
+
       expect(called).to.equal(false, 'a listener must not be registered when the filter throws');
-      expect(response.ok).to.equal(true, 'the request must not be cancelled by a listener that failed to register');
-      expect(requestCount).to.equal(1);
+      const cancelled = result.error ? result.error.message : null;
+      expect(cancelled).to.equal(null, 'the request must not be cancelled by a listener that failed to register');
+      expect(result.ok).to.equal(true);
+      expect(requestCount).to.equal(1, 'the request should have reached the server');
 
       // Control: registration is not simply broken — a subsequent correct call
       // does take effect. This half passes both before and after the fix.
