@@ -202,7 +202,7 @@ class WebRequest final : public gin::Wrappable<WebRequest> {
     ~RequestFilter();
 
     void AddUrlPattern(URLPattern pattern, bool is_match_pattern);
-    void AddUrlPatterns(const std::set<std::string>& filter_patterns,
+    bool AddUrlPatterns(const std::set<std::string>& filter_patterns,
                         RequestFilter* filter,
                         gin::Arguments* args,
                         bool is_match_pattern = true);

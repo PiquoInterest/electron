@@ -111,6 +111,7 @@
 #include "shell/browser/electron_navigation_throttle.h"
 #include "shell/browser/electron_permission_manager.h"
 #include "shell/browser/file_select_helper.h"
+#include "shell/browser/file_system_access/file_system_access_web_contents_helper.h"
 #include "shell/browser/native_window.h"
 #include "shell/browser/osr/osr_render_widget_host_view.h"
 #include "shell/browser/osr/osr_web_contents_view.h"
@@ -1104,6 +1105,7 @@ void WebContents::InitWithSessionAndOptions(
   web_contents()->NotifyPreferencesChanged();
 
   WebContentsPermissionHelper::CreateForWebContents(web_contents());
+  FileSystemAccessWebContentsHelper::CreateForWebContents(web_contents());
   InitZoomController(web_contents(), options);
 #if BUILDFLAG(ENABLE_ELECTRON_EXTENSIONS)
   extensions::ElectronExtensionWebContentsObserver::CreateForWebContents(
@@ -4048,9 +4050,12 @@ void WebContents::AttachToIframe(content::WebContents* embedder_web_contents,
     return;
   auto frame_token = blink::LocalFrameToken(unguessable_token.value());
 
-  attached_ = true;
+  // |attached_| records that AttachInnerWebContents() took ownership of the
+  // guest; ~WebContents relies on it, so it must only be set when the attach
+  // actually succeeded.
   if (guest_delegate_) {
-    guest_delegate_->AttachToIframe(embedder_web_contents, frame_token);
+    attached_ =
+        guest_delegate_->AttachToIframe(embedder_web_contents, frame_token);
   }
 }
 

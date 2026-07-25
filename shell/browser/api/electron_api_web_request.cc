@@ -258,7 +258,7 @@ bool WebRequest::RequestFilter::MatchesRequest(
          MatchesType(info->web_request_type);
 }
 
-void WebRequest::RequestFilter::AddUrlPatterns(
+bool WebRequest::RequestFilter::AddUrlPatterns(
     const std::set<std::string>& filter_patterns,
     RequestFilter* filter,
     gin::Arguments* args,
@@ -272,9 +272,10 @@ void WebRequest::RequestFilter::AddUrlPatterns(
       const char* error_type = URLPattern::GetParseResultString(result);
       args->ThrowTypeError("Invalid url pattern " + filter_pattern + ": " +
                            error_type);
-      return;
+      return false;
     }
   }
+  return true;
 }
 
 struct WebRequest::BlockedRequest {
@@ -719,8 +720,10 @@ void WebRequest::SetListener(Event event,
     dict.Set("urls", filter_include_patterns);
   }
 
-  filter.AddUrlPatterns(filter_include_patterns, &filter, args);
-  filter.AddUrlPatterns(filter_exclude_patterns, &filter, args, false);
+  if (!filter.AddUrlPatterns(filter_include_patterns, &filter, args))
+    return;
+  if (!filter.AddUrlPatterns(filter_exclude_patterns, &filter, args, false))
+    return;
 
   for (const std::string& filter_type : filter_types) {
     auto type = ParseResourceType(filter_type);

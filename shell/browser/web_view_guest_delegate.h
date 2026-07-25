@@ -31,8 +31,11 @@ class WebViewGuestDelegate : public content::BrowserPluginGuestDelegate,
   WebViewGuestDelegate& operator=(const WebViewGuestDelegate&) = delete;
 
   // Attach to the iframe.
-  void AttachToIframe(content::WebContents* embedder_web_contents,
-                      blink::LocalFrameToken& embedder_frame_token);
+  // Returns false if |embedder_frame_token| does not name a frame of
+  // |embedder_web_contents|, in which case no attach is performed.
+  [[nodiscard]] bool AttachToIframe(
+      content::WebContents* embedder_web_contents,
+      blink::LocalFrameToken& embedder_frame_token);
   void WillDestroy();
 
  protected:

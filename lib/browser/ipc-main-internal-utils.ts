@@ -18,8 +18,13 @@ export function invokeInWebContents<T>(sender: Electron.WebContents, command: st
   return new Promise<T>((resolve, reject) => {
     const requestId = ++nextId;
     const channel = `${command}_RESPONSE_${requestId}`;
+    // The request is delivered to the main frame only, so only the main frame
+    // may answer it. Matching on the WebContents alone would let any other
+    // frame in it — including a cross-origin subframe in another process —
+    // supply the reply.
+    const frameTreeNodeId = sender.mainFrame.frameTreeNodeId;
     ipcMainInternal.on(channel, function handler(event, error: Error, result: any) {
-      if (event.type !== 'frame' || event.sender !== sender) {
+      if (event.type !== 'frame' || event.frameTreeNodeId !== frameTreeNodeId) {
         console.error(`Reply to ${command} sent by unexpected sender`);
         return;
       }
